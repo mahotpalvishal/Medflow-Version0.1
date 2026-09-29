@@ -1,0 +1,91 @@
+services:
+
+  # ---------------- PostgreSQL ----------------
+  medflow-db:
+    image: postgres:16-alpine
+    container_name: medflow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d   # optional SQL seed scripts
+    ports:
+      - "5432:5432"     # exposed for local dev tools (DBeaver, pgAdmin)
+    networks:
+      - medflow-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------- Redis ----------------
+  medflow-redis:
+    image: redis:7-alpine
+    container_name: medflow-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - medflow-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ---------------- Spring Boot Backend ----------------
+  medflow-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: medflow-backend
+    restart: unless-stopped
+    environment:
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      SPRING_PROFILES_ACTIVE: docker
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    depends_on:
+      medflow-db:
+        condition: service_healthy     # wait until DB is ready
+      medflow-redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"    # exposed for Postman testing
+    networks:
+      - medflow-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  # ---------------- Angular Frontend ----------------
+  medflow-frontend:
+    build:
+      context: ./ui/medflow-web
+      dockerfile: Dockerfile
+    container_name: medflow-frontend
+    restart: unless-stopped
+    depends_on:
+      - medflow-backend
+    ports:
+      - "80:80"        # http://localhost
+    networks:
+      - medflow-net
+
+# ---------------- Named Volumes ----------------
+volumes:
+  db_data:
+  redis_data:
+
+# ---------------- Network ----------------
+networks:
+  medflow-net:
+    driver: bridge
