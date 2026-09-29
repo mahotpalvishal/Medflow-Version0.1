@@ -54,6 +54,26 @@
 ```
 ---
 
+### Docker Ports
+```
+┌─────────────────────────────────────────────────────┐
+│                    Docker Network                    │
+│                                                      │
+│  ┌──────────────┐   ┌──────────────┐   ┌──────────┐ │
+│  │  Angular     │──▶│  Spring Boot │──▶│ Postgres │ │
+│  │  (Nginx)     │   │  (HIS API)   │   │  (DB)    │ │
+│  │  Port 80     │   │  Port 8080   │   │ Port5432 │ │
+│  └──────────────┘   └──────┬───────┘   └──────────┘ │
+│                            │                         │
+│                            ▼                         │
+│                     ┌──────────────┐                 │
+│                     │    Redis     │                 │
+│                     │  (cache)     │                 │
+│                     └──────────────┘                 │
+└─────────────────────────────────────────────────────┘
+```
+---
+
 ## 1. Executive Summary
 MedFlow is a comprehensive Hospital Information System (HIS) designed to digitize and streamline clinical, operational, and administrative workflows. The system follows a modular architecture centered around a "Core Hospital OS," serving three distinct user portals (Admin, Clinical, Operations) via a unified web platform and mobile access.
 
